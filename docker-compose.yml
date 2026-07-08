@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: db-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_USER: dbuser
+      MYSQL_PASSWORD: dbpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db-init:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  back-ventas:
+    build:
+      context: ./back-Ventas_SpringBoot/Springboot-API-REST
+      dockerfile: Dockerfile
+    container_name: back-ventas
+    restart: always
+    environment:
+      - DB_ENDPOINT=mysql
+      - DB_PORT=3306
+      - DB_NAME=ventas_db
+      - DB_USERNAME=dbuser
+      - DB_PASSWORD=dbpassword
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  back-despachos:
+    build:
+      context: ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+      dockerfile: Dockerfile
+    container_name: back-despachos
+    restart: always
+    environment:
+      - DB_ENDPOINT=mysql
+      - DB_PORT=3306
+      - DB_NAME=despachos_db
+      - DB_USERNAME=dbuser
+      - DB_PASSWORD=dbpassword
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  front-despacho:
+    build:
+      context: ./front_despacho
+      dockerfile: Dockerfile
+    container_name: front-despacho
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - back-ventas
+      - back-despachos
+    networks:
+      - app-network
+
+volumes:
+  mysql_data:
+
+networks:
+  app-network:
+    driver: bridge

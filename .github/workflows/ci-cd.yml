@@ -1,0 +1,135 @@
+name: CI/CD Pipeline to AWS
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+env:
+  AWS_REGION: us-east-1                    # Región estándar de AWS Academy
+  ECR_FRONTEND_REPO: front-despacho
+  ECR_VENTAS_REPO: back-ventas
+  ECR_DESPACHOS_REPO: back-despachos
+  ECS_CLUSTER: ecommerce-cluster           # Nombre del clúster de ECS
+  ECS_SERVICE: ecommerce-service           # Nombre del servicio unificado de producción Fargate
+
+jobs:
+  build-and-test:
+    name: Build and Test Components
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Java JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    # Ejecutar pruebas para Ventas Backend
+    - name: Test Ventas Backend
+      run: |
+        cd back-Ventas_SpringBoot/Springboot-API-REST
+        chmod +x mvnw
+        ./mvnw test
+
+    # Ejecutar pruebas para Despachos Backend
+    - name: Test Despachos Backend
+      run: |
+        cd back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+        chmod +x mvnw
+        ./mvnw test
+
+    # Compilar Frontend
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: front_despacho/package-lock.json
+
+    - name: Build Frontend
+      run: |
+        cd front_despacho
+        npm ci
+        npm run build
+
+  build-and-push-images:
+    name: Build & Push to Amazon ECR
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials (AWS Academy Session Support)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # Necesario para cuenta de estudiante
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # Construir y empujar imagen de Ventas Backend
+    - name: Build & Push Ventas Image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/${{ env.ECR_VENTAS_REPO }}:$IMAGE_TAG -t $ECR_REGISTRY/${{ env.ECR_VENTAS_REPO }}:latest ./back-Ventas_SpringBoot/Springboot-API-REST
+        docker push $ECR_REGISTRY/${{ env.ECR_VENTAS_REPO }} --all-tags
+
+    # Construir y empujar imagen de Despachos Backend
+    - name: Build & Push Despachos Image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/${{ env.ECR_DESPACHOS_REPO }}:$IMAGE_TAG -t $ECR_REGISTRY/${{ env.ECR_DESPACHOS_REPO }}:latest ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+        docker push $ECR_REGISTRY/${{ env.ECR_DESPACHOS_REPO }} --all-tags
+
+    # Construir y empujar imagen de Frontend
+    - name: Build & Push Frontend Image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build --build-arg NGINX_CONF=nginx.prod.conf -t $ECR_REGISTRY/${{ env.ECR_FRONTEND_REPO }}:$IMAGE_TAG -t $ECR_REGISTRY/${{ env.ECR_FRONTEND_REPO }}:latest ./front_despacho
+        docker push $ECR_REGISTRY/${{ env.ECR_FRONTEND_REPO }} --all-tags
+
+  deploy-to-ecs:
+    name: Deploy to Amazon ECS
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # El siguiente bloque automatiza la actualización del servicio ECS Fargate unificado
+    - name: Force ECS Deployment
+      run: |
+        aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE }} --force-new-deployment

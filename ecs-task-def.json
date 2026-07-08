@@ -1,0 +1,133 @@
+{
+  "family": "ecommerce-task",
+  "taskRoleArn": "arn:aws:iam::058061547253:role/LabRole",
+  "executionRoleArn": "arn:aws:iam::058061547253:role/LabRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "2048",
+  "containerDefinitions": [
+    {
+      "name": "back-ventas",
+      "image": "058061547253.dkr.ecr.us-east-1.amazonaws.com/back-ventas:latest",
+      "cpu": 256,
+      "memory": 512,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "DB_ENDPOINT",
+          "value": "ecommerce-db.ccix4meuh8yh.us-east-1.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "3306"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "ventas_db"
+        },
+        {
+          "name": "DB_USERNAME",
+          "value": "dbuser"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "value": "dbpassword"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "ecs/ecommerce-task",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "back-ventas"
+        }
+      }
+    },
+    {
+      "name": "back-despachos",
+      "image": "058061547253.dkr.ecr.us-east-1.amazonaws.com/back-despachos:latest",
+      "cpu": 256,
+      "memory": 512,
+      "portMappings": [
+        {
+          "containerPort": 8081,
+          "hostPort": 8081,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "DB_ENDPOINT",
+          "value": "ecommerce-db.ccix4meuh8yh.us-east-1.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "3306"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "despachos_db"
+        },
+        {
+          "name": "DB_USERNAME",
+          "value": "dbuser"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "value": "dbpassword"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "ecs/ecommerce-task",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "back-despachos"
+        }
+      }
+    },
+    {
+      "name": "front-despacho",
+      "image": "058061547253.dkr.ecr.us-east-1.amazonaws.com/front-despacho:latest",
+      "cpu": 256,
+      "memory": 512,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "hostPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "dependsOn": [
+        {
+          "containerName": "back-ventas",
+          "condition": "START"
+        },
+        {
+          "containerName": "back-despachos",
+          "condition": "START"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "ecs/ecommerce-task",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "front-despacho"
+        }
+      }
+    }
+  ]
+}
