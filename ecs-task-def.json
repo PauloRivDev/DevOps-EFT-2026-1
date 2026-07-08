@@ -1,7 +1,7 @@
 {
   "family": "ecommerce-task",
-  "taskRoleArn": "arn:aws:iam::058061547253:role/LabRole",
-  "executionRoleArn": "arn:aws:iam::058061547253:role/LabRole",
+  "taskRoleArn": "arn:aws:iam::686062068924:role/LabRole",
+  "executionRoleArn": "arn:aws:iam::686062068924:role/LabRole",
   "networkMode": "awsvpc",
   "requiresCompatibilities": [
     "FARGATE"
@@ -11,7 +11,7 @@
   "containerDefinitions": [
     {
       "name": "back-ventas",
-      "image": "058061547253.dkr.ecr.us-east-1.amazonaws.com/back-ventas:latest",
+      "image": "686062068924.dkr.ecr.us-east-1.amazonaws.com/back-ventas:latest",
       "cpu": 256,
       "memory": 512,
       "portMappings": [
@@ -25,7 +25,7 @@
       "environment": [
         {
           "name": "DB_ENDPOINT",
-          "value": "ecommerce-db.ccix4meuh8yh.us-east-1.rds.amazonaws.com"
+          "value": "ecommerce-db.cff52ce16o58.us-east-1.rds.amazonaws.com"
         },
         {
           "name": "DB_PORT",
@@ -55,7 +55,7 @@
     },
     {
       "name": "back-despachos",
-      "image": "058061547253.dkr.ecr.us-east-1.amazonaws.com/back-despachos:latest",
+      "image": "686062068924.dkr.ecr.us-east-1.amazonaws.com/back-despachos:latest",
       "cpu": 256,
       "memory": 512,
       "portMappings": [
@@ -69,7 +69,7 @@
       "environment": [
         {
           "name": "DB_ENDPOINT",
-          "value": "ecommerce-db.ccix4meuh8yh.us-east-1.rds.amazonaws.com"
+          "value": "ecommerce-db.cff52ce16o58.us-east-1.rds.amazonaws.com"
         },
         {
           "name": "DB_PORT",
@@ -99,7 +99,7 @@
     },
     {
       "name": "front-despacho",
-      "image": "058061547253.dkr.ecr.us-east-1.amazonaws.com/front-despacho:latest",
+      "image": "686062068924.dkr.ecr.us-east-1.amazonaws.com/front-despacho:latest",
       "cpu": 256,
       "memory": 512,
       "portMappings": [
